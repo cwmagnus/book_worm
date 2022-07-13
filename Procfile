@@ -1,1 +1,1 @@
-web: ./target/release/book_worm
+worker: ./target/release/book_worm

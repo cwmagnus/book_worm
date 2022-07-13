@@ -1,6 +1,7 @@
 use std::env;
 use serenity::model::gateway::GatewayIntents;
 use serenity::prelude::*;
+use dotenv::dotenv;
 use crate::handler::Handler;
 
 mod book;
@@ -8,6 +9,8 @@ mod handler;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
     let token = env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment");
 
     let intents =
