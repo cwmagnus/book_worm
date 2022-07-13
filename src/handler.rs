@@ -5,7 +5,7 @@ use serenity::model::channel::Message;
 use serenity::prelude::*;
 use serenity::utils::Colour;
 use urlencoding;
-use crate::book::BookVolumeCollection;
+use crate::book::{BookVolume, BookVolumeCollection};
 
 const GOOGLE_API_KEY: &str = "AIzaSyBZWD8GhUNKmq_HUc1l5mb1LPsJF3QDOoc";
 
@@ -15,21 +15,46 @@ pub struct Handler;
 impl EventHandler for Handler {
     async fn message(&self, _ctx: Context, msg: Message) {
         lazy_static! {
-            static ref RE: Regex = Regex::new(r"\{(?P<book>[^']+)\}").unwrap();
+            static ref RE: Regex = Regex::new(r"\{(?P<book>.*?)\}").unwrap();
         }
 
         for cap in RE.captures_iter(&msg.content) {
-            let request_url = format!("https://www.googleapis.com/books/v1/volumes?q={search}&key={key}", search = urlencoding::encode(&cap["book"]), key = GOOGLE_API_KEY);
-            let response = reqwest::get(&request_url).await.unwrap();
+            let request_url = format!("https://www.googleapis.com/books/v1/volumes?q={}&key={}", urlencoding::encode(&cap["book"]), GOOGLE_API_KEY);
+
+            let response = reqwest::get(&request_url).await;
+            if let Err(error) = response  {
+                println!("Error getting Google Books response: {}", &error.to_string());
+                continue;
+            }
+
+            let response = response.unwrap();
             let response_text = &response.text().await.unwrap();
-            let volume_collection = serde_json::from_str::<BookVolumeCollection>(&response_text).unwrap();
 
-            for volume in volume_collection.items {
+            let volume_collection = serde_json::from_str::<BookVolumeCollection>(&response_text);
+            if let Err(error) = volume_collection  {
+                println!("Error parsing json response: {}", &error.to_string());
+                continue;
+            }
 
-                if volume.volume_info.authors.is_empty() || volume.volume_info.description.is_empty() || volume.volume_info.title.is_empty() {
-                    continue;
+            let volume_collection = volume_collection.unwrap();
+            if volume_collection.items.is_empty() {
+                let msg = msg
+                    .channel_id
+                    .send_message(&_ctx.http, |m| {
+                        m.embed(|e| {
+                            e.color(Colour::from_rgb(121, 21, 81));
+                            e.title("\"You may ask questions which I shall not choose to answer.\"\n(No books found)")
+                        })
+                    }).await;
+
+                if let Err(why) = msg {
+                    println!("Error sending message: {:?}", why);
                 }
 
+                continue;
+            }
+
+            if let Some(volume) = find_best_book(volume_collection.items) {
                 let msg = msg
                     .channel_id
                     .send_message(&_ctx.http, |m| {
@@ -71,9 +96,19 @@ impl EventHandler for Handler {
                 if let Err(why) = msg {
                     println!("Error sending message: {:?}", why);
                 }
-
-                return;
             }
         }
     }
+}
+
+fn find_best_book(books: Vec<BookVolume>) -> Option<BookVolume> {
+    for book in books {
+        if book.volume_info.authors.is_empty() || book.volume_info.description.is_empty() || book.volume_info.title.is_empty() {
+            continue;
+        }
+
+        return Some(book);
+    }
+
+    None
 }
