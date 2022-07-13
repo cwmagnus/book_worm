@@ -1,1 +1,1 @@
-release: ./target/release/book_worm
+web: ./target/release/book_worm
