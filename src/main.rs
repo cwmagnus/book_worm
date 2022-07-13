@@ -1,3 +1,4 @@
+use std::env;
 use serenity::model::gateway::GatewayIntents;
 use serenity::prelude::*;
 use crate::handler::Handler;
@@ -5,15 +6,14 @@ use crate::handler::Handler;
 mod book;
 mod handler;
 
-//const BOT_TOKEN: &str = "OTk2NjE5MTE1MTgxNjQ1OTM1.GAxP1H.bw-GFU7lzRruGnbapAtEU_ULipdde9P0lKIGuA";
-const BOT_TOKEN: &str = "OTk2NTEwMDkyNTA3NzU4NjYy.GRh2Mu.V-QDQMa41I7doOCVNTA-0ELivDSUtUEthC2aSM";
-
 #[tokio::main]
 async fn main() {
+    let token = env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment");
+
     let intents =
         GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
-    let mut client = Client::builder(BOT_TOKEN, intents)
+    let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .await
         .expect("Error creating client");
