@@ -1,2 +1,1 @@
-worker: ./target/release/book_worm
-release: heroku ps:scale worker=1
+release: ./target/release/book_worm
